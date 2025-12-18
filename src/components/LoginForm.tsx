@@ -13,11 +13,20 @@ const LoginForm = () => {
     setError('');
 
     try {
-      // 1. Send credentials to backend
+      // Create Form Data format
+      const formData = new URLSearchParams();
+      formData.append('username', username);
+      formData.append('password', password);
+
+      // 1. Send credentials to backend (Updated for Form Data)
       const response = await fetch("http://127.0.0.1:8000/users/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+        headers: {
+            // "application/json" -> "application/x-www-form-urlencoded"
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+        // Send the form data object, NOT JSON.stringify
+        body: formData,
       });
 
       if (!response.ok) throw new Error("Invalid credentials");

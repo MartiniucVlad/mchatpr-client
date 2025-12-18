@@ -1,0 +1,69 @@
+// src/App.tsx
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import RegisterForm from './components/RegisterForm.tsx';
+import LoginForm from './components/LoginForm.tsx';
+import ChatsPage from './components/ChatsPage.tsx';
+import type { JSX } from "react";
+
+
+const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+};
+
+// If you ARE logged in, go to Chats (you don't need to login again)
+const LoggedOutRoutes = ({ children }: { children: JSX.Element }) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    return <Navigate to="/chats" replace />;
+  }
+  return children;
+};
+
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        {/* --- PUBLIC ROUTES (Only accessible if NOT logged in) --- */}
+        <Route
+          path="/register"
+          element={
+            <LoggedOutRoutes>
+              <RegisterForm />
+            </LoggedOutRoutes>
+          }
+        />
+
+        <Route
+          path="/login"
+          element={
+            <LoggedOutRoutes>
+              <LoginForm />
+            </LoggedOutRoutes>
+          }
+        />
+
+        {/* --- PROTECTED ROUTES (Only accessible if logged in) --- */}
+        <Route
+          path="/chats"
+          element={
+            <ProtectedRoute>
+              <ChatsPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* --- DEFAULT REDIRECT --- */}
+        {/* If the path is unknown, we send them to Register.
+            However, since Register is now wrapped in LoggedOutRoutes,
+            a logged-in user will be auto-bounced to /chats. Perfect! */}
+        <Route path="*" element={<Navigate to="/register" />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+export default App;

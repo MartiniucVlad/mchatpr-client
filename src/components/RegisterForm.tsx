@@ -1,7 +1,7 @@
 // src/components/RegisterForm.tsx
 import React, { useState } from 'react';
 // Remove the .js extension so it resolves the .ts file
-import { registerUser, type UserRegisterData } from '../services/api';
+import { registerUser, type UserRegisterData } from '../services/api.ts';
 
 const RegisterForm = () => {
   // TypeScript automatically infers these are strings, but you can be explicit:

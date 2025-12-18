@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Ensure full-height layouts work */
+html,
+body,
+#root {
+  height: 100%;
+}
+
+/* Optional global styles */
+body {
+  margin: 0;
+}
