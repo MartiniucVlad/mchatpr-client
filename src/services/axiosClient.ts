@@ -67,6 +67,7 @@ api.interceptors.response.use(
         // Update the header of the failed request with the new token
         originalRequest.headers['Authorization'] = `Bearer ${access_token}`;
         // Retry the original request
+        // Retry the original request
         return api(originalRequest);
 
       } catch (refreshError) {

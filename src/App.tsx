@@ -4,6 +4,8 @@ import RegisterForm from './components/RegisterForm.tsx';
 import LoginForm from './components/LoginForm.tsx';
 import ChatsPage from './components/ChatsPage.tsx';
 import type { JSX } from "react";
+import MainLayout from "./components/MainLayout.tsx";
+import FriendsPage from "./components/FriendsPage.tsx";
 
 
 const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
@@ -47,15 +49,11 @@ function App() {
         />
 
         {/* --- PROTECTED ROUTES (Only accessible if logged in) --- */}
-        <Route
-          path="/chats"
-          element={
-            <ProtectedRoute>
-              <ChatsPage />
-            </ProtectedRoute>
-          }
-        />
-
+          <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
+                <Route path="/chats" element={<ChatsPage />} />
+                <Route path="/friends" element={<FriendsPage />} />
+      {/* Add other protected routes like /profile here later */}
+          </Route>
         {/* --- DEFAULT REDIRECT --- */}
         {/* If the path is unknown, we send them to Register.
             However, since Register is now wrapped in LoggedOutRoutes,

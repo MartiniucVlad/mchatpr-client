@@ -102,6 +102,7 @@ const ChatsPage = () => {
   const [groupName, setGroupName] = useState('');
   const [selectedGroupMembers, setSelectedGroupMembers] = useState<string[]>([]);
 
+
   // REFS
   const socketRef = useRef<WebSocket | null>(null);
   const activeConversationIdRef = useRef<string | null>(null);
@@ -112,24 +113,13 @@ const ChatsPage = () => {
     activeConversationIdRef.current = activeConversationId;
   }, [activeConversationId]);
 
-  // ----------------------------------------------------------------
-  // HELPER FUNCTIONS
-  // ----------------------------------------------------------------
-
-  // Function to mark a conversation as read on the server
-  const markConversationAsRead = async (conversationId: string) => {
-    try {
-      await api.post(`/chat/conversations/${conversationId}/read`);
-    } catch (err) {
-      console.error("Failed to mark conversation as read", err);
-    }
-  };
 
   // ----------------------------------------------------------------
   // 1. DATA FETCHING (Sidebar List)
   // ----------------------------------------------------------------
   const fetchConversations = async () => {
     try {
+        // Updated to fetch conversations instead of raw friends
         const response = await api.get("chat/conversations/list");
         setConversations(response.data);
     } catch (err) {
@@ -142,6 +132,7 @@ const ChatsPage = () => {
     fetchConversations();
   }, [token]);
 
+
   // ----------------------------------------------------------------
   // 2. WEBSOCKET LOGIC
   // ----------------------------------------------------------------
@@ -150,55 +141,46 @@ const ChatsPage = () => {
     const ws = new WebSocket(`ws://127.0.0.1:8000/ws/chat?token=${encodeURIComponent(token)}`);
     socketRef.current = ws;
 
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
+    // src/components/ChatsPage.tsx -> inside useEffect for WebSocket
+ws.onmessage = (event) => {
+  const data = JSON.parse(event.data);
 
-      // Update the Sidebar (Reordering and Preview)
-      setConversations((prevConv) => {
-        // Find the conversation that received the message
-        const existingIndex = prevConv.findIndex(c => c.id === data.conversation_id);
+  // 1. Update the Sidebar (Reordering and Preview)
+  setConversations((prevConv) => {
+    // Find the conversation that received the message
+    const existingIndex = prevConv.findIndex(c => c.id === data.conversation_id);
 
-        if (existingIndex > -1) {
-          const updatedConv = {
-            ...prevConv[existingIndex],
-            last_message: data.content.length <= 10 ? data.content : data.content.slice(0, 10) + "...",
-            last_message_time: data.timestamp,
-            // Only increment unread count if:
-            // 1. This conversation is NOT the active one, AND
-            // 2. The message is NOT from the current user
-            unread_count: (data.conversation_id !== activeConversationIdRef.current) && data.from !== currentUser
-              ? (prevConv[existingIndex].unread_count || 0) + 1
-              : prevConv[existingIndex].unread_count || 0
-          };
+    if (existingIndex > -1) {
+      const updatedConv = {
+        ...prevConv[existingIndex],
+        last_message: data.content,
+        last_message_time: data.timestamp,
+          unread_count: (data.conversation_id !== activeConversationIdRef.current) && data.from !== currentUser
+          ? (prevConv[existingIndex].unread_count || 0) + 1
+          : 0
 
-          // Remove it from current position and put at the start [0]
-          const others = prevConv.filter(c => c.id !== data.conversation_id);
-          return [updatedConv, ...others];
-        } else {
-          // New conversation - fetch updated list from server
-          fetchConversations();
-          return prevConv;
-        }
-      });
+      };
 
-      // Update the Chat Window if this is the active conversation
-      if (data.conversation_id === activeConversationIdRef.current) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            from: data.from,
-            content: data.content,
-            timestamp: data.timestamp,
-            isMine: data.from === currentUser
-          }
-        ]);
+      // Remove it from current position and put at the start [0]
+      const others = prevConv.filter(c => c.id !== data.conversation_id);
+      return [updatedConv, ...others];
+    }
+    return prevConv;
+  });
 
-        // If this is an incoming message (not from current user), mark as read
-        if (data.from !== currentUser) {
-          markConversationAsRead(data.conversation_id);
-        }
-      }
-    };
+  // 2. Update the Chat Window (Existing logic)
+  if (data.conversation_id !== activeConversationIdRef.current) return;
+
+  setMessages((prev) => [
+    ...prev,
+    {
+      from: data.from,
+      content: data.content,
+      timestamp: data.timestamp,
+      isMine: data.from === currentUser
+    }
+  ]);
+};
 
     return () => {
       ws.close();
@@ -206,12 +188,14 @@ const ChatsPage = () => {
     };
   }, [token, currentUser]);
 
+
   // ----------------------------------------------------------------
   // 3. AUTO SCROLL
   // ----------------------------------------------------------------
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
 
   // ----------------------------------------------------------------
   // 4. ACTION HANDLERS
@@ -240,20 +224,15 @@ const ChatsPage = () => {
     }
   };
 
-  const handleSelectConversation = async (conv: ConversationSummary) => {
-    if (activeConversationId === conv.id) return;
+  const handleSelectConversation = (conv: ConversationSummary) => {
+      if(activeConversationId === conv.id) return;
 
-    // Mark as read on the server
-    await markConversationAsRead(conv.id);
-
-    // Update local state to remove unread count
-    setConversations(prev => prev.map(c =>
-      c.id === conv.id ? { ...c, unread_count: 0 } : c
+      setConversations(prev => prev.map(c =>
+        c.id === conv.id ? { ...c, unread_count: 0 } : c
     ));
-
-    setActiveConversationId(conv.id);
-    setMessages([]); // Clear previous
-    loadChatHistory(conv.id);
+      setActiveConversationId(conv.id);
+      setMessages([]); // Clear previous
+      loadChatHistory(conv.id);
   };
 
   const handleSendMessage = () => {
@@ -331,7 +310,6 @@ const ChatsPage = () => {
           // Find the new object to set active (or just set ID and fetch history)
           setActiveConversationId(newId);
           setMessages([]);
-          loadChatHistory(newId);
 
           // 3. Close modals
           setIsGroupCreateOpen(false);
@@ -367,6 +345,7 @@ const ChatsPage = () => {
           setSelectedGroupMembers(prev => [...prev, friend]);
       }
   };
+
 
   // ----------------------------------------------------------------
   // RENDER
@@ -427,75 +406,75 @@ const ChatsPage = () => {
 
         {/* Conversations List */}
         <List sx={{ flex: 1, overflowY: 'auto', px: 1 }}>
-          {conversations.map((conv) => {
-            const displayName = getConversationName(conv);
-            const isGroup = conv.type === 'group';
+{conversations.map((conv) => {
+  const displayName = getConversationName(conv);
+  const isGroup = conv.type === 'group';
 
-            return (
-              <ListItemButton
-                key={conv.id}
-                selected={activeConversationId === conv.id}
-                onClick={() => handleSelectConversation(conv)}
-                sx={{
-                  borderRadius: 2,
-                  mb: 0.5,
-                  '&.Mui-selected': { bgcolor: '#3390ec1a', '&:hover': { bgcolor: '#3390ec2b' } }
-                }}
-              >
-                <ListItemAvatar>
-                  <Avatar sx={{ bgcolor: stringToColor(displayName), fontWeight: 'bold' }}>
-                    {isGroup ? <GroupAddIcon fontSize="small"/> : getInitials(displayName)}
-                  </Avatar>
-                </ListItemAvatar>
-                <ListItemText
-                  primary={
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Typography fontWeight={activeConversationId === conv.id ? 'bold' : 'medium'} noWrap>
-                        {displayName}
-                      </Typography>
+  return (
+    <ListItemButton
+      key={conv.id}
+      selected={activeConversationId === conv.id}
+      onClick={() => handleSelectConversation(conv)}
+      sx={{
+        borderRadius: 2,
+        mb: 0.5,
+        '&.Mui-selected': { bgcolor: '#3390ec1a', '&:hover': { bgcolor: '#3390ec2b' } }
+      }}
+    >
+      <ListItemAvatar>
+        <Avatar sx={{ bgcolor: stringToColor(displayName), fontWeight: 'bold' }}>
+          {isGroup ? <GroupAddIcon fontSize="small"/> : getInitials(displayName)}
+        </Avatar>
+      </ListItemAvatar>
+      <ListItemText
+        primary={
+  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <Typography fontWeight={activeConversationId === conv.id ? 'bold' : 'medium'} noWrap>
+      {displayName}
+    </Typography>
 
-                      <Stack alignItems="flex-end" spacing={0.5}>
-                        {conv.last_message_time && (
-                          <Typography variant="caption" sx={{ color: conv.unread_count > 0 ? '#3390ec' : 'text.secondary' }}>
-                            {new Date(conv.last_message_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </Typography>
-                        )}
+    <Stack alignItems="flex-end" spacing={0.5}>
+      {conv.last_message_time && (
+        <Typography variant="caption" sx={{ color: (conv.unread_count ?? 0) > 0 ? '#3390ec' : 'text.secondary' }}>
+          {new Date(conv.last_message_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </Typography>
+      )}
 
-                        {/* UNREAD BADGE - using server-sent unread_count */}
-                        {conv.unread_count > 0 && (
-                          <Box sx={{
-                            bgcolor: '#3390ec',
-                            color: 'white',
-                            borderRadius: '50%',
-                            minWidth: 20,
-                            height: 20,
-                            px: 0.5,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '0.75rem',
-                            fontWeight: 'bold'
-                          }}>
-                            {conv.unread_count}
-                          </Box>
-                        )}
-                      </Stack>
-                    </Box>
-                  }
-                  secondary={
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      noWrap
-                      sx={{ fontSize: 13, display: 'block' }}
-                    >
-                      {conv.last_message || (isGroup ? `${conv.participants.length} members` : "No messages yet")}
-                    </Typography>
-                  }
-                />
-              </ListItemButton>
-            );
-          })}
+      {/* UNREAD BADGE */}
+      {(conv.unread_count ?? 0) > 0 && (
+        <Box sx={{
+          bgcolor: '#3390ec',
+          color: 'white',
+          borderRadius: '50%',
+          minWidth: 20,
+          height: 20,
+          px: 0.5,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '0.75rem',
+          fontWeight: 'bold'
+        }}>
+          {conv.unread_count}
+        </Box>
+      )}
+    </Stack>
+  </Box>
+}
+        secondary={
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            noWrap
+            sx={{ fontSize: 13, display: 'block' }}
+          >
+            {conv.last_message || (isGroup ? `${conv.participants.length} members` : "No messages yet")}
+          </Typography>
+        }
+      />
+    </ListItemButton>
+  );
+})}
         </List>
       </Paper>
 
