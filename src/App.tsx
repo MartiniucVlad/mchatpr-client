@@ -2,7 +2,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import RegisterForm from './components/RegisterForm.tsx';
 import LoginForm from './components/LoginForm.tsx';
-import ChatsPage from './components/ChatsPage.tsx';
+import ChatsPage from './components/chat';
 import type { JSX } from "react";
 import MainLayout from "./components/MainLayout.tsx";
 import FriendsPage from "./components/FriendsPage.tsx";
