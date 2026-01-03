@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Box, CssBaseline } from '@mui/material';
+import { Box, CssBaseline, IconButton} from '@mui/material';
+import SchoolIcon from '@mui/icons-material/School';
 import { useChatLogic } from './useChatLogic';
 import { ChatSidebar } from './ChatSidebar.tsx';
 import { ChatWindow } from './ChatWindow';
 import { SemanticSearchModal } from './modals/SemanticSearchModal';
 import { NewChatModal } from './modals/NewChatModal';
+import { AnkiSidebar} from "../ankiNotes/AnkiSidebar.tsx";
+
 
 const ChatsPage = () => {
   // 1. Load Logic
@@ -19,6 +22,7 @@ const ChatsPage = () => {
   // 2. Local UI State for Modals
   const [isSemanticOpen, setIsSemanticOpen] = useState(false);
   const [isNewChatOpen, setIsNewChatOpen] = useState(false);
+  const [isAnkiOpen, setIsAnkiOpen] = useState(false);
 
   // 3. Derive current conversation
   const currentConv = conversations.find(c => c.id === activeConversationId);
@@ -46,9 +50,10 @@ const ChatsPage = () => {
   }, [isNewChatOpen]);
 
   return (
-    <Box sx={{ display: 'flex', height: '100%', bgcolor: '#f0f2f5' }}>
+    <Box sx={{ display: 'flex', height: '100%', bgcolor: '#f0f2f5', overflow: 'hidden' }}>
       <CssBaseline />
 
+      {/* Left Sidebar (Chats) */}
       <ChatSidebar
         conversations={conversations}
         activeId={activeConversationId}
@@ -58,18 +63,46 @@ const ChatsPage = () => {
         onLogout={handleLogout}
       />
 
-      <ChatWindow
-        activeId={activeConversationId}
-        conversation={currentConv}
-        messages={messages}
-        currentUser={currentUser}
-        highlightedMessageId={highlightedMessageId}
-        messagesEndRef={messagesEndRef}
-        onSendMessage={handleSendMessage}
-        onOpenSemanticSearch={() => setIsSemanticOpen(true)}
+      {/* Main Chat Area - Uses FlexGrow to fill space between sidebars */}
+      <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
+
+        <ChatWindow
+          activeId={activeConversationId}
+          conversation={currentConv}
+          messages={messages}
+          currentUser={currentUser}
+          highlightedMessageId={highlightedMessageId}
+          messagesEndRef={messagesEndRef}
+          onSendMessage={handleSendMessage}
+          onOpenSemanticSearch={() => setIsSemanticOpen(true)}
+        />
+
+        {/* Floating Button to Toggle Anki Sidebar (if you don't have a place in Navbar) */}
+        {!isAnkiOpen && (
+             <IconButton
+                onClick={() => setIsAnkiOpen(true)}
+                sx={{
+                    position: 'absolute',
+                    top: 20,
+                    right: 20,
+                    bgcolor: 'white',
+                    boxShadow: 2,
+                    '&:hover': { bgcolor: '#f5f5f5' }
+                }}
+            >
+                <SchoolIcon color="primary" />
+            </IconButton>
+        )}
+      </Box>
+
+      {/* Right Sidebar (Anki) */}
+      <AnkiSidebar
+        open={isAnkiOpen}
+        onClose={() => setIsAnkiOpen(false)}
+        currentUser={currentUser || ""}
       />
 
-      {/* Semantic Search Modal */}
+      {/* Modals */}
       <SemanticSearchModal
         open={isSemanticOpen}
         onClose={() => setIsSemanticOpen(false)}
@@ -80,7 +113,6 @@ const ChatsPage = () => {
         }}
       />
 
-      {/* New Chat Modal - Passes data and callbacks */}
       <NewChatModal
         open={isNewChatOpen}
         onClose={() => setIsNewChatOpen(false)}

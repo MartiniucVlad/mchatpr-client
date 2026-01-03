@@ -45,7 +45,7 @@ export const MessageInput = ({ onSend }: MessageInputProps) => {
             }
           }}
           variant="standard"
-          InputProps={{ disableUnderline: true }}
+          slotProps={{input : { disableUnderline: true }}}
           sx={{ bgcolor: '#f4f4f5', borderRadius: 4, px: 2, py: 1.5 }}
         />
         <IconButton onClick={() => setShowPicker(!showPicker)} sx={{ mb: 0.5 }} color="primary">

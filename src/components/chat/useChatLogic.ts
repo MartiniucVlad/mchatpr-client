@@ -1,134 +1,138 @@
-import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import api, { logout } from '../../services/axiosClient';
-import { Message, ConversationSummary } from './types';
+  import { useState, useEffect, useRef } from 'react';
+  import { useNavigate } from 'react-router-dom';
+  import api, { logout } from '../../services/axiosClient';
+  import type {Message, ConversationSummary} from './types';
+  import {useAnki} from "../ankiNotes/AnkiContext.tsx";
 
-export const useChatLogic = () => {
-  const navigate = useNavigate();
-  const token = localStorage.getItem('access_token');
-  const currentUser = localStorage.getItem('username') || '';
+  export const useChatLogic = () => {
+    const navigate = useNavigate();
+    const token = localStorage.getItem('access_token');
+    const currentUser = localStorage.getItem('username') || '';
+    const { selectedDeckRef } = useAnki();
 
-  // --- DATA STATE ---
-  const [conversations, setConversations] = useState<ConversationSummary[]>([]);
-  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-
-  // --- MODAL DATA STATE ---
-  const [friendsNoConv, setFriendsNoConv] = useState<string[]>([]);
-  const [allFriends, setAllFriends] = useState<string[]>([]);
-
-  // --- UI REFS/STATE ---
-  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
-  const socketRef = useRef<WebSocket | null>(null);
-  const activeConversationIdRef = useRef<string | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // Keep ref in sync for Websocket
-  useEffect(() => {
-    activeConversationIdRef.current = activeConversationId;
-  }, [activeConversationId]);
-
-  // 1. API HELPER
-  const markConversationAsRead = async (conversationId: string) => {
-    try {
-      await api.post(`/chat/conversations/${conversationId}/read`);
-    } catch (err) {
-      console.error("Failed to mark read", err);
-    }
-  };
-
-  const fetchConversations = async () => {
-    try {
-      const response = await api.get("chat/conversations/list");
-      setConversations(response.data);
-    } catch (err) {
-      console.error("Failed to fetch conversations", err);
-    }
-  };
-
-  useEffect(() => {
-    if (token) fetchConversations();
-  }, [token]);
-
-  // 2. WEBSOCKET
-  useEffect(() => {
-    if (!token) return;
-    const ws = new WebSocket(`ws://127.0.0.1:8000/ws/chat?token=${encodeURIComponent(token)}`);
-    socketRef.current = ws;
-
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-
-      setConversations((prevConv) => {
-        const existingIndex = prevConv.findIndex(c => c.id === data.conversation_id);
-        if (existingIndex > -1) {
-          const updatedConv = {
-            ...prevConv[existingIndex],
-            last_message_preview: data.content.length <= 30 ? data.content : data.content.slice(0, 30) + "...",
-            last_message_at: data.timestamp,
-            unread_count: (data.conversation_id !== activeConversationIdRef.current) && data.from !== currentUser
-              ? (prevConv[existingIndex].unread_count || 0) + 1
-              : prevConv[existingIndex].unread_count || 0
-          };
-          const others = prevConv.filter(c => c.id !== data.conversation_id);
-          return [updatedConv, ...others];
-        } else {
-          fetchConversations();
-          return prevConv;
-        }
-      });
-
-      if (data.conversation_id === activeConversationIdRef.current) {
-        setMessages((prev) => [
-          ...prev,
-          { from: data.from, content: data.content, timestamp: data.timestamp, isMine: data.from === currentUser }
-        ]);
-        if (data.from !== currentUser) markConversationAsRead(data.conversation_id);
+    // --- DATA STATE ---
+    const [conversations, setConversations] = useState<ConversationSummary[]>([]);
+    const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+    const [messages, setMessages] = useState<Message[]>([]);
+  
+    // --- MODAL DATA STATE ---
+    const [friendsNoConv, setFriendsNoConv] = useState<string[]>([]);
+    const [allFriends, setAllFriends] = useState<string[]>([]);
+  
+    // --- UI REFS/STATE ---
+    const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
+    const socketRef = useRef<WebSocket | null>(null);
+    const activeConversationIdRef = useRef<string | null>(null);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+    // Keep ref in sync for Websocket
+    useEffect(() => {
+      activeConversationIdRef.current = activeConversationId;
+    }, [activeConversationId]);
+  
+    // 1. API HELPER
+    const markConversationAsRead = async (conversationId: string) => {
+      try {
+        await api.post(`/chat/conversations/${conversationId}/read`);
+      } catch (err) {
+        console.error("Failed to mark read", err);
       }
     };
-
-    return () => {
-      ws.close();
-      socketRef.current = null;
+  
+    const fetchConversations = async () => {
+      try {
+        const response = await api.get("chat/conversations/list");
+        setConversations(response.data);
+      } catch (err) {
+        console.error("Failed to fetch conversations", err);
+      }
     };
-  }, [token, currentUser]);
-
-  // Scroll to bottom on new message
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  // 3. ACTIONS
-  const loadChatHistory = async (convId: string) => {
-    try {
-      const response = await api.get(`/chat/history/${convId}`);
-      setMessages(response.data.map((msg: any) => ({
-        from: msg.sender,
-        content: msg.content,
-        timestamp: msg.timestamp,
-        isMine: msg.sender === currentUser
-      })));
-    } catch (err) {
-      console.error("Failed to load history", err);
-    }
-  };
-
-  const handleSelectConversation = async (conv: ConversationSummary) => {
-    if (activeConversationId === conv.id) return;
-    await markConversationAsRead(conv.id);
-    setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, unread_count: 0 } : c));
-    setActiveConversationId(conv.id);
-    setMessages([]);
-    loadChatHistory(conv.id);
-  };
-
-  const handleSendMessage = (content: string) => {
-    if (!content.trim() || !activeConversationId || !socketRef.current) return;
-    socketRef.current.send(JSON.stringify({
-      conversation_id: activeConversationId,
-      content: content.trim()
-    }));
-  };
+  
+    useEffect(() => {
+      if (token) fetchConversations();
+    }, [token]);
+  
+    // 2. WEBSOCKET
+    useEffect(() => {
+      if (!token) return;
+      const ws = new WebSocket(`ws://127.0.0.1:8000/ws/chat?token=${encodeURIComponent(token)}`);
+      socketRef.current = ws;
+  
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+  
+        setConversations((prevConv) => {
+          const existingIndex = prevConv.findIndex(c => c.id === data.conversation_id);
+          if (existingIndex > -1) {
+            const updatedConv = {
+              ...prevConv[existingIndex],
+              last_message_preview: data.content.length <= 30 ? data.content : data.content.slice(0, 30) + "...",
+              last_message_at: data.timestamp,
+              unread_count: (data.conversation_id !== activeConversationIdRef.current) && data.from !== currentUser
+                ? (prevConv[existingIndex].unread_count || 0) + 1
+                : prevConv[existingIndex].unread_count || 0
+            };
+            const others = prevConv.filter(c => c.id !== data.conversation_id);
+            return [updatedConv, ...others];
+          } else {
+            fetchConversations();
+            return prevConv;
+          }
+        });
+  
+        if (data.conversation_id === activeConversationIdRef.current) {
+          setMessages((prev) => [
+            ...prev,
+            { from: data.from, content: data.content, timestamp: data.timestamp, isMine: data.from === currentUser }
+          ]);
+          if (data.from !== currentUser) markConversationAsRead(data.conversation_id);
+        }
+      };
+  
+      return () => {
+        ws.close();
+        socketRef.current = null;
+      };
+    }, [token, currentUser]);
+  
+    // Scroll to bottom on new message
+    useEffect(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages]);
+  
+    // 3. ACTIONS
+    const loadChatHistory = async (convId: string) => {
+      try {
+        const response = await api.get(`/chat/history/${convId}`);
+        setMessages(response.data.map((msg: any) => ({
+          from: msg.sender,
+          content: msg.content,
+          timestamp: msg.timestamp,
+          isMine: msg.sender === currentUser
+        })));
+      } catch (err) {
+        console.error("Failed to load history", err);
+      }
+    };
+  
+    const handleSelectConversation = async (conv: ConversationSummary) => {
+      if (activeConversationId === conv.id) return;
+      await markConversationAsRead(conv.id);
+      setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, unread_count: 0 } : c));
+      setActiveConversationId(conv.id);
+      setMessages([]);
+      loadChatHistory(conv.id);
+    };
+  
+    const handleSendMessage = (content: string) => {
+      if (!content.trim() || !activeConversationId || !socketRef.current) return;
+      const selectedDeck = selectedDeckRef.current;
+      socketRef.current.send(JSON.stringify({
+        conversation_id: activeConversationId,
+        content: content.trim(),
+        selectedDeck: selectedDeck
+      }));
+    };
 
   const handleJumpToMessage = (timestamp: string) => {
     const normalizedSearchTs = timestamp.substring(0, 23);

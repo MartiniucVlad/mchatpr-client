@@ -50,10 +50,10 @@ export const ChatSidebar = ({ conversations, activeId, currentUser, onSelect, on
           fullWidth size="small" placeholder="Search chats" variant="outlined"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          InputProps={{
+          slotProps={{input : {
             startAdornment: (<InputAdornment position="start"><SearchIcon color="action" fontSize="small" /></InputAdornment>),
             sx: { borderRadius: 4, bgcolor: '#f1f1f1', '& fieldset': { border: 'none' } }
-          }}
+          }}}
         />
       </Box>
 
@@ -62,7 +62,6 @@ export const ChatSidebar = ({ conversations, activeId, currentUser, onSelect, on
         {filtered.map((conv) => {
           const displayName = getConversationName(conv, currentUser);
           const isGroup = conv.type === 'group';
-
           return (
             <ListItemButton
               key={conv.id}
@@ -75,33 +74,36 @@ export const ChatSidebar = ({ conversations, activeId, currentUser, onSelect, on
                   {isGroup ? <GroupAddIcon fontSize="small"/> : getInitials(displayName)}
                 </Avatar>
               </ListItemAvatar>
-              <ListItemText
-                /* FIX: Allow DIVs inside the text slots */
-                primaryTypographyProps={{ component: 'div' }}
-                secondaryTypographyProps={{ component: 'div' }}
-                primary={
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Typography fontWeight={activeId === conv.id ? 'bold' : 'medium'} noWrap>{displayName}</Typography>
-                    {conv.last_message_at && (
-                      <Typography variant="caption" color="text.secondary">
-                        {new Date(conv.last_message_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                <ListItemText
+                  slotProps={{
+                    primary: { component: 'div' },
+                    secondary: { component: 'div' }
+                  }}
+                  primary={
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Typography fontWeight={activeId === conv.id ? 'bold' : 'medium'} noWrap>
+                        {displayName}
                       </Typography>
-                    )}
-                  </Box>
-                }
-                secondary={
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="body2" color="text.secondary" noWrap sx={{ maxWidth: '80%' }}>
-                      {conv.last_message_preview || "No messages"}
-                    </Typography>
-                    {conv.unread_count > 0 && (
-                      <Box sx={{ bgcolor: '#3390ec', color: 'white', borderRadius: '50%', minWidth: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem' }}>
-                        {conv.unread_count}
-                      </Box>
-                    )}
-                  </Box>
-                }
-              />
+                      {conv.last_message_at && (
+                        <Typography variant="caption" color="text.secondary">
+                          {new Date(conv.last_message_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </Typography>
+                      )}
+                    </Box>
+                  }
+                  secondary={
+                    <Box sx={{ displ    ay: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2" color="text.secondary" noWrap sx={{ maxWidth: '80%' }}>
+                        {conv.last_message_preview || "No messages"}
+                      </Typography>
+                      {conv.unread_count > 0 && (
+                        <Box sx={{ bgcolor: '#3390ec', color: 'white', borderRadius: '50%', minWidth: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem' }}>
+                          {conv.unread_count}
+                        </Box>
+                      )}
+                    </Box>
+                  }
+                />
             </ListItemButton>
           );
         })}

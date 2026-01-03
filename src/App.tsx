@@ -6,6 +6,7 @@ import ChatsPage from './components/chat';
 import type { JSX } from "react";
 import MainLayout from "./components/MainLayout.tsx";
 import FriendsPage from "./components/FriendsPage.tsx";
+import {AnkiProvider} from "./components/ankiNotes/AnkiContext.tsx";
 
 
 const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
@@ -28,6 +29,7 @@ const LoggedOutRoutes = ({ children }: { children: JSX.Element }) => {
 function App() {
   return (
     <BrowserRouter>
+    <AnkiProvider>
       <Routes>
         {/* --- PUBLIC ROUTES (Only accessible if NOT logged in) --- */}
         <Route
@@ -50,8 +52,8 @@ function App() {
 
         {/* --- PROTECTED ROUTES (Only accessible if logged in) --- */}
           <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
-                <Route path="/chats" element={<ChatsPage />} />
-                <Route path="/friends" element={<FriendsPage />} />
+                    <Route path="/chats" element={<ChatsPage />} />
+                    <Route path="/friends" element={<FriendsPage />} />
       {/* Add other protected routes like /profile here later */}
           </Route>
         {/* --- DEFAULT REDIRECT --- */}
@@ -60,6 +62,7 @@ function App() {
             a logged-in user will be auto-bounced to /chats. Perfect! */}
         <Route path="*" element={<Navigate to="/register" />} />
       </Routes>
+    </AnkiProvider>
     </BrowserRouter>
   );
 }

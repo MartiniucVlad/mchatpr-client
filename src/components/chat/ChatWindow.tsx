@@ -14,7 +14,8 @@ interface ChatWindowProps {
   messages: Message[];
   currentUser: string;
   highlightedMessageId: string | null;
-  messagesEndRef: React.RefObject<HTMLDivElement>;
+  messagesEndRef: React.RefObject<HTMLDivElement | null>;
+
   onSendMessage: (text: string) => void;
   onOpenSemanticSearch: () => void;
 }
@@ -50,7 +51,7 @@ export const ChatWindow = ({
               {conversation.type === 'group' ? 'Group Chat' : 'Online'}
             </Typography>
           </Box>
-          <Tooltip title="AI Smart Search">
+          <Tooltip title="Semantic Search">
             <IconButton onClick={onOpenSemanticSearch} color="primary"><AutoAwesomeIcon /></IconButton>
           </Tooltip>
           <IconButton><SearchIcon /></IconButton>
