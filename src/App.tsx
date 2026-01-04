@@ -7,6 +7,7 @@ import type { JSX } from "react";
 import MainLayout from "./components/MainLayout.tsx";
 import FriendsPage from "./components/FriendsPage.tsx";
 import {AnkiProvider} from "./components/ankiNotes/AnkiContext.tsx";
+import {WebSocketProvider} from "./services/WebSocketContext.tsx";
 
 
 const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
@@ -27,42 +28,45 @@ const LoggedOutRoutes = ({ children }: { children: JSX.Element }) => {
 };
 
 function App() {
+  const token = localStorage.getItem('access_token');
   return (
     <BrowserRouter>
-    <AnkiProvider>
-      <Routes>
-        {/* --- PUBLIC ROUTES (Only accessible if NOT logged in) --- */}
-        <Route
-          path="/register"
-          element={
-            <LoggedOutRoutes>
-              <RegisterForm />
-            </LoggedOutRoutes>
-          }
-        />
+      <WebSocketProvider token={token}>
+        <AnkiProvider>
+          <Routes>
+            {/* --- PUBLIC ROUTES (Only accessible if NOT logged in) --- */}
+            <Route
+              path="/register"
+              element={
+                <LoggedOutRoutes>
+                  <RegisterForm />
+                </LoggedOutRoutes>
+              }
+            />
 
-        <Route
-          path="/login"
-          element={
-            <LoggedOutRoutes>
-              <LoginForm />
-            </LoggedOutRoutes>
-          }
-        />
+            <Route
+              path="/login"
+              element={
+                <LoggedOutRoutes>
+                  <LoginForm />
+                </LoggedOutRoutes>
+              }
+            />
 
-        {/* --- PROTECTED ROUTES (Only accessible if logged in) --- */}
-          <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
-                    <Route path="/chats" element={<ChatsPage />} />
-                    <Route path="/friends" element={<FriendsPage />} />
-      {/* Add other protected routes like /profile here later */}
-          </Route>
-        {/* --- DEFAULT REDIRECT --- */}
-        {/* If the path is unknown, we send them to Register.
-            However, since Register is now wrapped in LoggedOutRoutes,
-            a logged-in user will be auto-bounced to /chats. Perfect! */}
-        <Route path="*" element={<Navigate to="/register" />} />
-      </Routes>
-    </AnkiProvider>
+            {/* --- PROTECTED ROUTES (Only accessible if logged in) --- */}
+              <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
+                        <Route path="/chats" element={<ChatsPage />} />
+                        <Route path="/friends" element={<FriendsPage />} />
+          {/* Add other protected routes like /profile here later */}
+              </Route>
+            {/* --- DEFAULT REDIRECT --- */}
+            {/* If the path is unknown, we send them to Register.
+                However, since Register is now wrapped in LoggedOutRoutes,
+                a logged-in user will be auto-bounced to /chats. Perfect! */}
+            <Route path="*" element={<Navigate to="/register" />} />
+          </Routes>
+        </AnkiProvider>
+      </WebSocketProvider>
     </BrowserRouter>
   );
 }

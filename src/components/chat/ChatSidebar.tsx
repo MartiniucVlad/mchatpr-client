@@ -7,7 +7,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import ChatIcon from '@mui/icons-material/Chat';
 import LogoutIcon from '@mui/icons-material/Logout';
 import GroupAddIcon from '@mui/icons-material/GroupAdd';
-import { ConversationSummary } from './types';
+import type {ConversationSummary} from './types';
 import { stringToColor, getInitials, getConversationName } from './utils';
 
 interface SidebarProps {
@@ -92,7 +92,7 @@ export const ChatSidebar = ({ conversations, activeId, currentUser, onSelect, on
                     </Box>
                   }
                   secondary={
-                    <Box sx={{ displ    ay: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <Typography variant="body2" color="text.secondary" noWrap sx={{ maxWidth: '80%' }}>
                         {conv.last_message_preview || "No messages"}
                       </Typography>

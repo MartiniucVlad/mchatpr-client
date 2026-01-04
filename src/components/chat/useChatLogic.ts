@@ -3,12 +3,16 @@
   import api, { logout } from '../../services/axiosClient';
   import type {Message, ConversationSummary} from './types';
   import {useAnki} from "../ankiNotes/AnkiContext.tsx";
+  import {useWebSocket} from "../../services/WebSocketContext.tsx";
+
 
   export const useChatLogic = () => {
     const navigate = useNavigate();
-    const token = localStorage.getItem('access_token');
     const currentUser = localStorage.getItem('username') || '';
+    const token = localStorage.getItem('access_token');
+
     const { selectedDeckRef } = useAnki();
+    const { sendMessage, subscribe} = useWebSocket();
 
     // --- DATA STATE ---
     const [conversations, setConversations] = useState<ConversationSummary[]>([]);
@@ -21,7 +25,6 @@
   
     // --- UI REFS/STATE ---
     const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
-    const socketRef = useRef<WebSocket | null>(null);
     const activeConversationIdRef = useRef<string | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
   
@@ -47,53 +50,59 @@
         console.error("Failed to fetch conversations", err);
       }
     };
-  
+
     useEffect(() => {
       if (token) fetchConversations();
     }, [token]);
+
   
-    // 2. WEBSOCKET
     useEffect(() => {
-      if (!token) return;
-      const ws = new WebSocket(`ws://127.0.0.1:8000/ws/chat?token=${encodeURIComponent(token)}`);
-      socketRef.current = ws;
-  
-      ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-  
-        setConversations((prevConv) => {
-          const existingIndex = prevConv.findIndex(c => c.id === data.conversation_id);
-          if (existingIndex > -1) {
-            const updatedConv = {
-              ...prevConv[existingIndex],
-              last_message_preview: data.content.length <= 30 ? data.content : data.content.slice(0, 30) + "...",
-              last_message_at: data.timestamp,
-              unread_count: (data.conversation_id !== activeConversationIdRef.current) && data.from !== currentUser
-                ? (prevConv[existingIndex].unread_count || 0) + 1
-                : prevConv[existingIndex].unread_count || 0
-            };
-            const others = prevConv.filter(c => c.id !== data.conversation_id);
-            return [updatedConv, ...others];
-          } else {
-            fetchConversations();
-            return prevConv;
-          }
-        });
-  
-        if (data.conversation_id === activeConversationIdRef.current) {
-          setMessages((prev) => [
-            ...prev,
-            { from: data.from, content: data.content, timestamp: data.timestamp, isMine: data.from === currentUser }
-          ]);
-          if (data.from !== currentUser) markConversationAsRead(data.conversation_id);
+  // Subscribe specifically to chat messages
+  const unsubscribe = subscribe("chat_message", (data) => {
+
+    setConversations((prevConv) => {
+      const existingIndex = prevConv.findIndex(c => c.id === data.conversation_id);
+
+      if (existingIndex > -1) {
+        const updatedConv = {
+          ...prevConv[existingIndex],
+          // Ensure we handle potentially missing fields if backend structure varies
+          last_message_preview: data.content.length <= 30 ? data.content : data.content.slice(0, 30) + "...",
+          last_message_at: data.timestamp,
+          unread_count: (data.conversation_id !== activeConversationIdRef.current) && data.from !== currentUser
+            ? (prevConv[existingIndex].unread_count || 0) + 1
+            : prevConv[existingIndex].unread_count || 0
+        };
+        const others = prevConv.filter(c => c.id !== data.conversation_id);
+        return [updatedConv, ...others];
+      } else {
+        fetchConversations();
+        return prevConv;
+      }
+    });
+
+    if (data.conversation_id === activeConversationIdRef.current) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          from: data.from,
+          content: data.content,
+          timestamp: data.timestamp,
+          isMine: data.from === currentUser
         }
-      };
-  
-      return () => {
-        ws.close();
-        socketRef.current = null;
-      };
-    }, [token, currentUser]);
+      ]);
+
+      if (data.from !== currentUser) {
+          markConversationAsRead(data.conversation_id);
+      }
+    }
+  });
+
+  // Cleanup: Unsubscribe when this hook unmounts
+  return () => {
+    unsubscribe();
+  };
+}, [subscribe, currentUser]); // Dependencies: subscribe is stable, currentUser might change
   
     // Scroll to bottom on new message
     useEffect(() => {
@@ -125,14 +134,17 @@
     };
   
     const handleSendMessage = (content: string) => {
-      if (!content.trim() || !activeConversationId || !socketRef.current) return;
-      const selectedDeck = selectedDeckRef.current;
-      socketRef.current.send(JSON.stringify({
+      if (!content.trim() || !activeConversationId) return;
+
+      const selectedDeck = selectedDeckRef.current; // Assuming you have this ref set up
+
+      sendMessage({
+        type: "chat_message", // <--- Critical: Tells backend Hub which handler to use
         conversation_id: activeConversationId,
         content: content.trim(),
-        selectedDeck: selectedDeck
-      }));
-    };
+        deck_name: selectedDeck || null // Map 'selectedDeck' to backend's 'deck_name'
+      });
+};
 
   const handleJumpToMessage = (timestamp: string) => {
     const normalizedSearchTs = timestamp.substring(0, 23);

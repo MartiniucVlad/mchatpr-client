@@ -4,7 +4,7 @@ import MoreVertIcon from '@mui/icons-material/MoreVert';
 import SearchIcon from '@mui/icons-material/Search';
 import GroupAddIcon from '@mui/icons-material/GroupAdd';
 import Linkify from 'linkify-react';
-import { Message, ConversationSummary } from './types';
+import type {Message, ConversationSummary} from './types';
 import { stringToColor, getInitials, getConversationName } from './utils';
 import MessageInput from './MessageInput';
 
@@ -64,8 +64,6 @@ export const ChatWindow = ({
         {messages.map((msg, index) => {
           const isHighlighted = highlightedMessageId === msg.timestamp;
           const msgId = `msg-${msg.timestamp}`;
-          console.log(msgId)
-
           return (
             <Box
               key={index}

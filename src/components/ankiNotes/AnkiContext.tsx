@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useRef, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useRef, useEffect, type ReactNode } from 'react';
 
 interface AnkiContextType {
   selectedDeck: string;
